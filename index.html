@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ОФЗ · Монитор доходности</title>
+  <meta name="description" content="Графики цен, доходность и купоны российских ОФЗ">
+  <style>
+    :root { --navy:#14233a; --blue:#315ee8; --line:#dce3ed; --muted:#718096; --bg:#f3f6fb; --green:#087e61; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; background:var(--bg); color:var(--navy); font:16px/1.45 Arial,Helvetica,sans-serif; }
+    button,input { font:inherit; } button { cursor:pointer; }
+    .topbar { height:64px; border-bottom:1px solid var(--line); background:#fff; }
+    .topbar-inner,.wrap { width:min(1420px,calc(100% - 32px)); margin:auto; }
+    .topbar-inner { height:100%; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:900; letter-spacing:-.03em; }
+    .logo { display:grid; place-items:center; width:38px; height:38px; border-radius:12px; background:var(--navy); color:#fff; font-size:20px; }
+    .status { display:flex; align-items:center; gap:8px; color:#66758a; font-size:14px; }
+    .dot { width:8px; height:8px; border-radius:50%; background:#f5aa3c; }
+    .dot.live { background:#12a47c; } .dot.demo { background:#8b98aa; }
+    .wrap { padding:30px 0 24px; }
+    .heading { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:24px; }
+    .eyebrow { margin:0 0 6px; color:#78869a; font-size:13px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    h1 { margin:0; font-size:clamp(36px,5vw,58px); line-height:.98; letter-spacing:-.055em; }
+    .picker { position:relative; width:min(100%,360px); }
+    .picker-toggle { width:100%; min-height:48px; display:flex; align-items:center; justify-content:space-between; padding:0 15px; border:1px solid #cfd8e5; border-radius:13px; background:#fff; color:var(--navy); font-weight:750; box-shadow:0 7px 22px rgba(31,51,81,.06); }
+    .picker-panel { display:none; position:absolute; z-index:5; top:56px; right:0; width:100%; max-height:360px; overflow:auto; padding:8px; border:1px solid var(--line); border-radius:16px; background:#fff; box-shadow:0 20px 60px rgba(20,35,58,.18); }
+    .picker.open .picker-panel { display:block; }
+    .search { position:sticky; top:-8px; z-index:1; width:calc(100% + 16px); margin:-8px -8px 8px; padding:13px 14px; border:0; border-bottom:1px solid #e6ebf2; outline:0; background:#fff; }
+    .bond-option { display:grid; grid-template-columns:24px 1fr auto; align-items:center; gap:10px; width:100%; padding:9px 10px; border:0; border-radius:10px; background:#fff; color:var(--navy); text-align:left; }
+    .bond-option:hover { background:#f3f6fb; }
+    .check { display:grid; place-items:center; width:20px; height:20px; border:1px solid #bcc8d7; border-radius:6px; color:#fff; font-size:13px; }
+    .bond-option.selected .check { border-color:var(--blue); background:var(--blue); }
+    .bond-option small { display:block; color:#8491a3; }
+    .bond-option strong:last-child { font-size:14px; }
+    .notice { display:none; margin:-10px 0 20px; padding:11px 14px; border:1px solid #d8e0eb; border-radius:12px; background:#fff; color:#66758a; font-size:14px; }
+    .notice.show { display:block; }
+    .grid { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(330px,.72fr); gap:20px; }
+    .card { overflow:hidden; border:1px solid var(--line); border-radius:24px; background:#fff; box-shadow:0 14px 45px rgba(31,51,81,.06); }
+    .chart-head { min-height:92px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:18px 24px; border-bottom:1px solid #e4e9f0; }
+    .label { margin:0 0 8px; color:#77869a; font-size:14px; font-weight:700; }
+    .legend { display:flex; flex-wrap:wrap; gap:8px 18px; font-size:14px; font-weight:750; }
+    .legend span { display:flex; align-items:center; gap:7px; } .legend i { width:10px; height:10px; border-radius:50%; }
+    .periods { display:flex; flex:none; padding:4px; border-radius:12px; background:#eef2f7; }
+    .periods button { min-width:48px; padding:8px 10px; border:0; border-radius:9px; background:transparent; color:#738196; font-size:14px; font-weight:800; }
+    .periods button.active { background:#fff; color:#244fd0; box-shadow:0 2px 7px rgba(31,51,81,.1); }
+    .chart-wrap { position:relative; height:390px; padding:18px 16px 10px 8px; }
+    canvas { display:block; width:100%; height:100%; }
+    .side { display:grid; gap:20px; }
+    .yield-card { position:relative; overflow:hidden; padding:24px; border-radius:24px; background:var(--navy); color:#fff; box-shadow:0 18px 45px rgba(20,35,58,.18); }
+    .yield-card:after { content:""; position:absolute; width:110px; height:110px; right:-38px; top:-42px; border:22px solid rgba(255,255,255,.04); border-radius:50%; }
+    .dark-label { color:#9cabc0; font-size:14px; font-weight:700; }
+    .yield { margin:20px 0 25px; font-size:62px; font-weight:900; line-height:1; letter-spacing:-.06em; }
+    .yield small { color:#7fa0ff; font-size:24px; }
+    .meta { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-top:17px; border-top:1px solid rgba(255,255,255,.1); }
+    .meta small { display:block; color:#8fa0b7; } .meta b { display:block; margin-top:4px; }
+    .coupon { padding:24px; }
+    .coupon-top { display:flex; justify-content:space-between; gap:16px; }
+    .coupon h2 { margin:2px 0 0; font-size:25px; line-height:1.15; letter-spacing:-.04em; }
+    .calendar { display:grid; flex:none; place-items:center; width:44px; height:44px; border-radius:12px; background:#edf1ff; color:var(--blue); font-size:22px; }
+    .rule { height:1px; margin:23px 0; background:#e5eaf1; }
+    .coupon-value { display:flex; align-items:end; justify-content:space-between; gap:12px; }
+    .coupon-value small { color:#8491a3; } .coupon-value strong { display:block; margin-top:3px; font-size:31px; letter-spacing:-.04em; }
+    .rate { padding:6px 9px; border-radius:8px; background:#e8f8f3; color:var(--green); font-size:14px; font-weight:800; }
+    .maturity { margin:18px 0 0; color:#718096; font-size:14px; }
+    .table-card { margin-top:20px; }
+    .table-title { display:flex; align-items:center; justify-content:space-between; padding:15px 24px; border-bottom:1px solid #e4e9f0; }
+    .table-title h2 { margin:0; font-size:18px; letter-spacing:-.03em; } .table-title span { color:#8190a3; font-size:12px; }
+    .table-scroll { overflow-x:auto; }
+    table { width:100%; min-width:760px; border-collapse:collapse; text-align:left; }
+    th { padding:11px 18px; color:#8794a5; font-size:12px; letter-spacing:.07em; text-transform:uppercase; }
+    td { padding:14px 18px; border-top:1px solid #edf0f4; font-size:14px; } td b { display:block; } td small { color:#8996a7; }
+    .yield-pill { display:inline-block; padding:6px 9px; border-radius:8px; background:#edf1ff; color:var(--blue); font-weight:800; }
+    .footnote { margin:14px 2px 0; color:#8190a3; font-size:12px; }
+    @media (max-width:950px) { .grid { grid-template-columns:1fr; } .side { grid-template-columns:1fr 1fr; } }
+    @media (max-width:650px) { .topbar-inner,.wrap { width:min(100% - 22px,1420px); } .heading { align-items:stretch; flex-direction:column; } .picker { width:100%; } .chart-head { align-items:stretch; flex-direction:column; } .periods { align-self:flex-start; } .chart-wrap { height:320px; padding-left:0; } .side { grid-template-columns:1fr; } .status { font-size:12px; } .brand span:last-child { display:none; } }
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="topbar-inner">
+    <div class="brand"><span class="logo">₽</span><span>ОФЗ · МОНИТОР</span></div>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Получаем котировки</span></div>
+  </div></header>
+  <main class="wrap">
+    <div class="heading">
+      <div><p class="eyebrow">Государственные облигации</p><h1>Доходность ОФЗ</h1></div>
+      <div class="picker" id="picker">
+        <button class="picker-toggle" id="pickerToggle" aria-expanded="false"><span id="selectedCount">2 выпуска</span><span>⌄</span></button>
+        <div class="picker-panel"><input class="search" id="search" placeholder="Найти выпуск или ISIN"><div id="bondOptions"></div></div>
+      </div>
+    </div>
+    <div class="notice" id="notice">Нет соединения с ISS Мосбиржи — отображаются демонстрационные данные.</div>
+    <section class="grid">
+      <article class="card">
+        <div class="chart-head">
+          <div><p class="label">Цена, % от номинала</p><div class="legend" id="legend"></div></div>
+          <div class="periods" id="periods"><button data-days="31">1М</button><button class="active" data-days="92">3М</button><button data-days="365">1Г</button></div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart" aria-label="График цен выбранных ОФЗ"></canvas></div>
+      </article>
+      <aside class="side">
+        <article class="yield-card">
+          <div class="dark-label">Текущая доходность</div>
+          <div class="yield"><span id="currentYield">—</span><small>%</small></div>
+          <div class="meta"><div><small>Выпуск</small><b id="currentName">—</b></div><div><small>Цена</small><b id="currentPrice">—</b></div></div>
+        </article>
+        <article class="card coupon">
+          <div class="coupon-top"><div><div class="label">Ближайший купон</div><h2 id="couponDate">—</h2></div><div class="calendar">▣</div></div>
+          <div class="rule"></div>
+          <div class="coupon-value"><div><small>На одну облигацию</small><strong id="couponValue">—</strong></div><span class="rate" id="couponRate">—</span></div>
+          <p class="maturity">Погашение: <b id="maturity">—</b></p>
+        </article>
+      </aside>
+    </section>
+    <section class="card table-card">
+      <div class="table-title"><h2>Выбранные выпуски</h2><span>данные ISS Мосбиржи</span></div>
+      <div class="table-scroll"><table><thead><tr><th>Выпуск</th><th>Цена</th><th>Доходность</th><th>Купон</th><th>Дата купона</th><th>Погашение</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+    </section>
+    <p class="footnote">Котировки могут поступать с задержкой. Информация не является инвестиционной рекомендацией.</p>
+  </main>
+  <script>
+    const COLORS=['#4f7cff','#ff8a42','#8f6dff','#16a394'];
+    const fallback=[
+      {id:'SU26238RMFS4',name:'ОФЗ 26238',maturity:'2041-05-15',yield:14.82,price:62.73,coupon:35.40,couponRate:7.10,nextCoupon:'2026-12-10'},
+      {id:'SU26243RMFS4',name:'ОФЗ 26243',maturity:'2038-05-19',yield:14.57,price:78.41,coupon:48.87,couponRate:9.80,nextCoupon:'2026-11-25'},
+      {id:'SU26247RMFS9',name:'ОФЗ 26247',maturity:'2039-05-11',yield:14.29,price:82.16,coupon:60.34,couponRate:12.10,nextCoupon:'2026-10-14'},
+      {id:'SU26248RMFS7',name:'ОФЗ 26248',maturity:'2040-05-16',yield:14.41,price:85.92,coupon:64.84,couponRate:13.00,nextCoupon:'2026-11-04'}
+    ];
+    let bonds=fallback, selected=[fallback[0].id,fallback[1].id], days=92, series=[], live=false;
+    const $=id=>document.getElementById(id);
+    const fmtDate=value=>value&&value!=='—'?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(new Date(value)):'—';
+    const shortDate=value=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(new Date(value));
+    function rows(block){return block&&block.columns?block.data.map(row=>Object.fromEntries(block.columns.map((col,i)=>[col,row[i]]))):[]}
+    function chosen(){return selected.map(id=>bonds.find(b=>b.id===id)).filter(Boolean)}
+    function fallbackSeries(){return Array.from({length:days},(_,i)=>{const date=new Date();date.setDate(date.getDate()-(days-i-1));const point={date:date.toISOString().slice(0,10)};chosen().forEach((b,j)=>point[b.id]=+(b.price-i*(.018+j*.004)+Math.sin(i/5+j)*.7+Math.cos(i/13)*.35).toFixed(2));return point})}
+    function renderOptions(filter=''){
+      $('bondOptions').innerHTML=bonds.filter(b=>(b.name+' '+b.id).toLowerCase().includes(filter.toLowerCase())).slice(0,30).map(b=>`<button class="bond-option ${selected.includes(b.id)?'selected':''}" data-id="${b.id}"><span class="check">${selected.includes(b.id)?'✓':''}</span><span><b>${b.name}</b><small>${b.id}</small></span><strong>${b.yield.toFixed(2)}%</strong></button>`).join('');
+      document.querySelectorAll('.bond-option').forEach(btn=>btn.onclick=()=>toggle(btn.dataset.id));
+    }
+    function toggle(id){if(selected.includes(id)){if(selected.length>1)selected=selected.filter(x=>x!==id)}else selected=selected.length===4?[...selected.slice(1),id]:[...selected,id];renderOptions($('search').value);refresh()}
+    function render(){
+      const list=chosen(), primary=list[0]; if(!primary)return;
+      $('selectedCount').textContent=list.length+' '+(list.length===1?'выпуск':list.length<5?'выпуска':'выпусков');
+      $('legend').innerHTML=list.map((b,i)=>`<span><i style="background:${COLORS[i]}"></i>${b.name}</span>`).join('');
+      $('currentYield').textContent=primary.yield.toFixed(2);$('currentName').textContent=primary.name;$('currentPrice').textContent=primary.price.toFixed(2)+'%';
+      $('couponDate').textContent=fmtDate(primary.nextCoupon);$('couponValue').textContent=primary.coupon.toFixed(2)+' ₽';$('couponRate').textContent=primary.couponRate.toFixed(2)+'%';$('maturity').textContent=fmtDate(primary.maturity);
+      $('tableBody').innerHTML=list.map((b,i)=>`<tr><td><b style="border-left:4px solid ${COLORS[i]};padding-left:10px">${b.name}</b><small>${b.id}</small></td><td><b>${b.price.toFixed(2)}%</b></td><td><span class="yield-pill">${b.yield.toFixed(2)}%</span></td><td><b>${b.coupon.toFixed(2)} ₽</b></td><td>${fmtDate(b.nextCoupon)}</td><td>${fmtDate(b.maturity)}</td></tr>`).join('');
+      draw();
+    }
+    function draw(){
+      const canvas=$('chart'), box=canvas.getBoundingClientRect(), ratio=window.devicePixelRatio||1;
+      canvas.width=Math.max(1,box.width*ratio);canvas.height=Math.max(1,box.height*ratio);
+      const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);const W=box.width,H=box.height,p={l:48,r:16,t:16,b:34};
+      const list=chosen(), values=series.flatMap(point=>list.map(b=>Number(point[b.id])).filter(Number.isFinite));if(!values.length)return;
+      let min=Math.min(...values),max=Math.max(...values);const pad=Math.max((max-min)*.12,.5);min-=pad;max+=pad;
+      const x=i=>p.l+i*(W-p.l-p.r)/Math.max(1,series.length-1), y=v=>p.t+(max-v)*(H-p.t-p.b)/(max-min);
+      ctx.font='12px Arial';ctx.textAlign='right';ctx.textBaseline='middle';
+      for(let i=0;i<5;i++){const yy=p.t+i*(H-p.t-p.b)/4,val=max-i*(max-min)/4;ctx.strokeStyle='#e7ecf3';ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(p.l,yy);ctx.lineTo(W-p.r,yy);ctx.stroke();ctx.fillStyle='#8190a4';ctx.fillText(val.toFixed(1)+'%',p.l-8,yy)}ctx.setLineDash([]);
+      ctx.textAlign='center';ctx.textBaseline='top';const count=Math.min(5,series.length);for(let i=0;i<count;i++){const idx=Math.round(i*(series.length-1)/Math.max(1,count-1));ctx.fillStyle='#8190a4';ctx.fillText(shortDate(series[idx].date),x(idx),H-p.b+11)}
+      list.forEach((b,j)=>{ctx.strokeStyle=COLORS[j];ctx.lineWidth=2.7;ctx.lineJoin='round';ctx.beginPath();let started=false;series.forEach((point,i)=>{const val=Number(point[b.id]);if(!Number.isFinite(val))return;started?ctx.lineTo(x(i),y(val)):ctx.moveTo(x(i),y(val));started=true});ctx.stroke()});
+    }
+    async function loadSeries(){
+      if(!live){series=fallbackSeries();render();return}
+      const from=new Date();from.setDate(from.getDate()-days);
+      try{const result=await Promise.all(chosen().map(async b=>{const url=`https://iss.moex.com/iss/engines/stock/markets/bonds/boards/TQOB/securities/${b.id}/candles.json?iss.meta=off&interval=24&from=${from.toISOString().slice(0,10)}&candles.columns=begin,close`;const response=await fetch(url);if(!response.ok)throw Error();return{b,data:rows((await response.json()).candles)}}));const map=new Map();result.forEach(({b,data})=>data.forEach(row=>{const date=String(row.begin).slice(0,10),point=map.get(date)||{date};point[b.id]=Number(row.close);map.set(date,point)}));series=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));if(!series.length)throw Error();render()}catch(e){series=fallbackSeries();render()}
+    }
+    async function refresh(){await loadSeries();render()}
+    async function loadBonds(){
+      try{const url='https://iss.moex.com/iss/engines/stock/markets/bonds/boards/TQOB/securities.json?iss.meta=off&iss.only=securities,marketdata&securities.columns=SECID,SHORTNAME,MATDATE,COUPONVALUE,NEXTCOUPON,COUPONPERCENT&marketdata.columns=SECID,LAST,MARKETPRICE,YIELDATWAPRICE,EFFECTIVEYIELDLAST,YIELD,UPDATETIME';const response=await fetch(url);if(!response.ok)throw Error();const data=await response.json(),secs=rows(data.securities),marketRows=rows(data.marketdata),market=new Map(marketRows.map(r=>[String(r.SECID),r]));const loaded=secs.filter(r=>String(r.SECID).startsWith('SU')&&market.has(String(r.SECID))).map(r=>{const q=market.get(String(r.SECID));return{id:String(r.SECID),name:String(r.SHORTNAME||r.SECID).replace('ОФЗ-ПД ','ОФЗ '),maturity:r.MATDATE||'—',yield:Number(q.YIELDATWAPRICE??q.YIELD??q.EFFECTIVEYIELDLAST??0),price:Number(q.LAST??q.MARKETPRICE??0),coupon:Number(r.COUPONVALUE??0),couponRate:Number(r.COUPONPERCENT??0),nextCoupon:r.NEXTCOUPON||'—'}}).filter(b=>b.price>0&&b.yield>0);if(!loaded.length)throw Error();bonds=loaded;selected=selected.filter(id=>bonds.some(b=>b.id===id));if(!selected.length)selected=bonds.slice(0,2).map(b=>b.id);live=true;$('statusDot').className='dot live';$('statusText').textContent='Мосбиржа · '+(marketRows.find(r=>r.UPDATETIME)?.UPDATETIME||'обновлено');$('notice').className='notice'}catch(e){live=false;$('statusDot').className='dot demo';$('statusText').textContent='Демо-режим';$('notice').className='notice show'}renderOptions();refresh()
+    }
+    $('pickerToggle').onclick=()=>{const open=$('picker').classList.toggle('open');$('pickerToggle').setAttribute('aria-expanded',open)};
+    $('search').oninput=e=>renderOptions(e.target.value);
+    document.addEventListener('click',e=>{if(!$('picker').contains(e.target)){$('picker').classList.remove('open');$('pickerToggle').setAttribute('aria-expanded','false')}});
+    $('periods').onclick=e=>{const btn=e.target.closest('button');if(!btn)return;days=Number(btn.dataset.days);document.querySelectorAll('#periods button').forEach(b=>b.classList.toggle('active',b===btn));refresh()};
+    window.addEventListener('resize',draw);renderOptions();series=fallbackSeries();render();loadBonds();
+  </script>
+</body>
+</html>
